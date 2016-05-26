@@ -1,0 +1,9 @@
+{
+	"name": "disasm",
+	"authors": [
+		"Andreas Zwinkau"
+	],
+	"description": "Beautiful disassembler",
+	"copyright": "Copyright © 2016, Andreas Zwinkau",
+	"license": "BSL-1.0"
+}

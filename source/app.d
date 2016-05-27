@@ -9,7 +9,7 @@ import std.conv : to;
 immutable jump_instrs = ["jmp", "jmpq", "ja", "je", "jne"];
 
 /// represents one arrow to draw
-class arrow {
+class Arrow {
     string start;
     string end;
     uint length;
@@ -19,13 +19,16 @@ class arrow {
         this.end = end;
         this.length = cast(uint) abs(end.to!long(16) - start.to!long(16));
     }
+    @property bool forwards() {
+        return start < end;
+    }
 }
 
 /// represents a line to print
 struct cmdline {
     string addr;
     string cmd;
-    arrow[] arrows;
+    Arrow[] arrows;
 }
 
 void handleSection(string[] lines)
@@ -44,7 +47,7 @@ void handleSection(string[] lines)
 
     // find all jumps
     cmdline[] my_lines;
-    arrow[] arrows;
+    Arrow[] arrows;
     string[][string] jump_targets;
     foreach (line; lines) {
         auto parts = line.splitter().array;
@@ -59,7 +62,7 @@ void handleSection(string[] lines)
             if (target[0] == '*') continue;
             if (target[0] == 'f') continue;
             jump_targets[target] ~= addr;
-            arrows ~= new arrow(addr, target);
+            arrows ~= new Arrow(addr, target);
         }
     }
     //writeln("arrows: ", arrows.length);
@@ -69,7 +72,7 @@ void handleSection(string[] lines)
     int max_col;
     foreach (ref line; my_lines) {
         auto addr = line.addr;
-        arrow[] as;
+        Arrow[] as;
         foreach (a; arrows) {
             if (a.start <= addr && a.end >= addr)
                 as ~= a;
@@ -95,46 +98,53 @@ void handleSection(string[] lines)
     foreach (line; my_lines) {
         auto addr = line.addr;
 
-        int target_col = max_col + 1;
-        int source_col = max_col + 1;
+        int target_col = int.min;
+        int source_col = int.min;
         foreach (a; line.arrows) {
-            if (a.end == addr) target_col = min(target_col, a.column);
-            if (a.start == addr) source_col = min(target_col, a.column);
+            if (a.end == addr) target_col = max(target_col, a.column);
+            if (a.start == addr) source_col = max(source_col, a.column);
         }
 
         // compose arrow output
         wchar[] output;
         output.length = max_col+1;
         output[] = ' ';
+        assert (output.length < int.max);
+        target_col = cast(int)output.length - target_col - 1;
+        source_col = cast(int)output.length - source_col - 1;
         foreach (a; line.arrows) {
-            const c = a.column;
-            if (c == target_col) {
-                if (a.end < a.start)
-                    output[c] = '┍';
-                else
-                    output[c] = '┕';
-                foreach (i; c + 1 .. output.length)
-                    output[i] = '━';
-            } else if (c == source_col) {
-                if (a.end < a.start)
-                    output[c] = '╰';
-                else
+            const c = output.length - a.column - 1;
+            if (a.start == addr) { // starting here
+                if (a.forwards)
                     output[c] = '╭';
+                else
+                    output[c] = '╰';
                 foreach (i; c + 1 .. output.length)
-                    output[i] = '─';
-            } else {
+                    if (output[i] == ' ')
+                        output[i] = '─';
+                    else
+                        output[i] = '┼';
+            } else if (a.end == addr) { // ending here
+                if (a.forwards)
+                    output[c] = '┕';
+                else
+                    output[c] = '┍';
+                foreach (i; c + 1 .. output.length)
+                    if (output[i] == ' ')
+                        output[i] = '━';
+                    else if (output[i] == '│' || output[i] == '┆')
+                        output[i] = '┿';
+                    else if (output[i] == '┕')
+                        output[i] = '┷';
+                    else if (output[i] == '┍')
+                        output[i] = '┯';
+            } else { // passing through
                 if (output[c] == '─')
                     output[c] = '┼';
                 else if (output[c] == '━')
-                    if (a.end == addr) // another arrow also ends here
-                        if (a.start < a.end)
-                            output[c] = '┷';
-                        else
-                            output[c] = '┯';
-                    else
-                        output[c] = '┿';
+                    output[c] = '┿';
                 else
-                    if (a.start < a.end)
+                    if (a.forwards)
                         output[c] = '│';
                     else // backarrow
                         output[c] = '┆';
@@ -146,37 +156,6 @@ void handleSection(string[] lines)
         write(output);
         write(" ", line.cmd);
         writeln();
-        continue;
-
-/**
-        if (line.cmd.length > 3) {
-            auto target = "";
-            if (target > addr)
-                write("┌─");
-            else
-                write("└─");
-        } else if (addr in jump_targets) {
-            bool above = false, below = false;
-            foreach (src; jump_targets[addr]) {
-                if (src < addr)
-                    above = true;
-                else
-                    below = true;
-            }
-            if (above)
-                if (below)
-                    write("┝━");
-                else
-                    write("┕━");
-            else {
-                assert (below);
-                write("┍━");
-            }
-        } else {
-            write("  ");
-        }
-        writeln();
-        **/
     }
 }
 

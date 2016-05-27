@@ -5,6 +5,7 @@ import std.algorithm;
 import std.array;
 import std.math : abs;
 import std.conv : to;
+import std.format : format;
 
 immutable jump_instrs = ["jmp", "jmpq", "ja", "je", "jne"];
 
@@ -31,16 +32,15 @@ struct cmdline {
     Arrow[] arrows;
 }
 
-void handleSection(string[] lines)
+string[] handleSection(string[] lines)
 {
-    writeln();
+    if (lines.empty) return lines;
     if (lines.front.canFind("<.gnu.hash>")
             || lines.front.canFind("<.dynstr>")
             || lines.front.canFind("<.gnu.version>")
             || lines.front.canFind("<.gnu.version_r>")
             || lines.front.canFind("<.dynsym>")) {
-        writeln("omit ", lines.front);
-        return;
+        return ["omit "~lines.front];
     }
     writeln(lines.front);
     lines.popFront();
@@ -92,9 +92,10 @@ void handleSection(string[] lines)
         line.arrows = as;
         //if (!as.empty) writeln(addr, " ", line.arrows);
     }
-    writeln("maximum column: ", max_col);
+    //writeln("maximum column: ", max_col);
 
     // print lines
+    string[] ret;
     foreach (line; my_lines) {
         auto addr = line.addr;
 
@@ -152,15 +153,24 @@ void handleSection(string[] lines)
         }
 
         // actually print
-        write(" ", addr, ": ");
-        write(output);
-        write(" ", line.cmd);
-        writeln();
+        ret ~= format(" %s:%s %s", addr, output, line.cmd);
     }
+    return ret;
+}
+
+unittest {
+    assert (handleSection([]) == []);
 }
 
 void main(string[] args)
 {
+    auto helpInformation = getopt(args);
+
+    if (helpInformation.helpWanted || args.length <= 1) {
+        defaultGetoptPrinter("Usage:", helpInformation.options);
+        return;
+    }
+
     string path = args[1];
     auto pipes = pipeShell("objdump --no-show-raw-insn -D "~path, Redirect.stdout);
     scope(exit) wait(pipes.pid);
@@ -168,8 +178,11 @@ void main(string[] args)
     string[] lines;
     foreach (line; pipes.stdout.byLine) {
         if (line == "") {
-            if (lines.length > 2)
-                handleSection(lines);
+            if (lines.length > 2) {
+                writeln();
+                foreach(l; handleSection(lines))
+                    writeln(l);
+            }
             lines = [];
             continue;
         }

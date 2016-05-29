@@ -51,7 +51,10 @@ string[] handleSection(string[] lines)
     string[][string] jump_targets;
     foreach (line; lines) {
         auto parts = line.splitter().array;
-        if (parts.length <= 2) continue;
+        if (parts.length < 2) {
+            writeln("SKIP ", parts.length, ":", line);
+            continue;
+        }
         auto addr = parts[0][0 .. $-1];
         auto instr = parts[1];
         string cmd = line[9 .. $].strip(' ').strip('\t');

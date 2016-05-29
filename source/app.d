@@ -7,7 +7,7 @@ import std.math : abs;
 import std.conv : to;
 import std.format : format;
 
-immutable jump_instrs = ["jmp", "jmpq", "ja", "je", "jne"];
+immutable jump_instrs = ["jmp", "jmpq", "ja", "je", "jne", "jae"];
 
 /// represents one arrow to draw
 class Arrow {

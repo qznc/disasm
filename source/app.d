@@ -4,10 +4,11 @@ import std.process : pipeShell, Redirect, wait;
 import std.algorithm;
 import std.array;
 import std.math : abs;
-import std.conv : to;
+import std.conv : to, text;
 import std.format : format;
 
 immutable jump_instrs = ["jmp", "jmpq", "ja", "je", "jne", "jae", "jb", "jo", "jbe"];
+size_t max_lines_count = 5000;
 
 /// represents one arrow to draw
 class Arrow {
@@ -35,15 +36,14 @@ struct cmdline {
 string[] handleSection(string[] lines)
 {
     if (lines.empty) return lines;
-    if (lines.front.canFind("<.gnu.hash>")
-            || lines.front.canFind("<.dynstr>")
-            || lines.front.canFind("<.gnu.version>")
-            || lines.front.canFind("<.gnu.version_r>")
-            || lines.front.canFind("<.dynsym>")) {
-        return ["omit "~lines.front];
-    }
     writeln(lines.front);
     lines.popFront();
+    if (lines.length > max_lines_count) {
+        return ["omit cause line count = "~text(lines.length)];
+    }
+    if (lines.length > 2000) {
+        writeln("WARN: line count = ", lines.length);
+    }
 
     // find all jumps
     cmdline[] my_lines;
@@ -167,7 +167,9 @@ unittest {
 
 void main(string[] args)
 {
-    auto helpInformation = getopt(args);
+    auto helpInformation = getopt(args,
+        "max-line-count", "omit sections with more instructions", &max_lines_count
+    );
 
     if (helpInformation.helpWanted || args.length <= 1) {
         defaultGetoptPrinter("Usage:", helpInformation.options);

@@ -57,7 +57,8 @@ string[] handleSection(string[] lines)
     foreach (line; lines) {
         auto parts = line.splitter().array;
         if (parts.length < 2) {
-            writeln("SKIP ", parts.length, ":", line);
+            if (line.endsWith("...")) continue;
+            writeln("SKIP ", parts.length, " '", line, "'");
             continue;
         }
         auto addr = parts[0][0 .. $-1];

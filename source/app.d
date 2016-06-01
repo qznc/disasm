@@ -7,8 +7,13 @@ import std.math : abs;
 import std.conv : to, text;
 import std.format : format;
 
-immutable jump_instrs = ["jmp", "jmpq", "ja", "je", "jne", "jae", "jb", "jo", "jbe"];
 size_t max_lines_count = 5000;
+
+immutable jump_instrs = ["jmp", "jmpq",
+    "ja", "je", "jne", "jae", "jb", "jo", "jbe",
+    "js", "jle", "jg", "jns", "jge", "jl", "jp", "jnp", "jno",
+    "loop", "loope", "loopne",
+    "jecxz"];
 
 /// represents one arrow to draw
 class Arrow {
@@ -57,6 +62,10 @@ string[] handleSection(string[] lines)
         }
         auto addr = parts[0][0 .. $-1];
         auto instr = parts[1];
+        if (instr.endsWith(",pn"))
+            instr = instr[0.. $-3];
+        if (instr.endsWith(",pt"))
+            instr = instr[0.. $-3];
         string cmd = line[9 .. $].strip(' ').strip('\t');
         auto l = cmdline(addr, cmd, []);
         my_lines ~= l;
